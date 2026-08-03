@@ -50,3 +50,9 @@ The following requirements were discussed and agreed upon during the client meet
 ## Error Handling
 - Return appropriate HTTP status codes for successful and failed requests.
 - Display meaningful error messages for validation failures, duplicate payments, and processing errors.
+
+##Refund Handling and payment adjustment
+ -Detect overpayments and underpayments against invoices
+ -Allow refund processing through dashboard
+ -Also option to adjust excess payment against future invoices
+ 
