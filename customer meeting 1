@@ -1,0 +1,52 @@
+# Customer Meeting - Requirements
+
+The following requirements were discussed and agreed upon during the client meeting for the Payment Processing Platform.
+
+## Dashboard
+- Provide a dashboard to manage all payment activities.
+- Allow users to initiate payments to vendors.
+- Display payment status and transaction history.
+- Generate proof of successful payments.
+
+## Vendor Management
+- Allow users to add new vendors.
+- Store vendor information for future payments.
+
+## Payment Management
+- Create payments to registered vendors.
+- Store payment details including:
+  - Payment amount
+  - Sender account
+  - Receiver account
+  - Date and time
+  - Payment status
+- Track the complete payment lifecycle from creation to completion or failure.
+
+## Invoice-Based Payments
+- Every payment must be linked to an invoice.
+- Each invoice should have only one successful payment.
+- Prevent duplicate payments for the same invoice.
+- If a payment is pending, another payment for the same invoice should not be allowed.
+- If a payment fails, the invoice should be available for payment again.
+
+## Retry Handling
+- Retry failed payments automatically when appropriate.
+- Ensure vendors are not paid twice due to retry attempts.
+- Allow retries only after confirming that the previous payment has failed.
+
+## Multi-Currency Support
+- Support payments to international vendors.
+- Convert currencies using the latest exchange rate.
+- Support payments from INR to foreign currencies (e.g., GBP).
+- Include applicable Forex charges during currency conversion.
+- Apply Forex deductions for international transactions.
+
+## Reporting & Audit
+- Maintain complete payment history.
+- Allow users to search payments by vendor, date, amount, and status.
+- Generate payment reports.
+- Keep an audit trail of all payment activities.
+
+## Error Handling
+- Return appropriate HTTP status codes for successful and failed requests.
+- Display meaningful error messages for validation failures, duplicate payments, and processing errors.
