@@ -1,66 +1,42 @@
-package com.example.payment_processing.model;
+package com.example.payment_processing.dto;
 
-import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
-@Entity
-@Table(name = "vendors")
-public class Vendor {
+public class CreateVendorRequest {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-
-    @Column(nullable = false)
+    @NotBlank
     private String name;
 
-
-    @Column(unique = true, nullable = false)
+    @NotBlank
+    @Email
     private String email;
 
-
+    @NotBlank
     private String bankAccount;
 
-
+    @NotBlank
     private String country;
 
 
-    // Required by JPA
-    public Vendor() {
-    }
-
-
-    // Constructor with fields
-    public Vendor(Long id, String name, String email, String bankAccount, String country) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.bankAccount = bankAccount;
-        this.country = country;
+    // Default constructor
+    public CreateVendorRequest() {
     }
 
 
     // Getters
 
-    public Long getId() {
-        return id;
-    }
-
-
     public String getName() {
         return name;
     }
-
 
     public String getEmail() {
         return email;
     }
 
-
     public String getBankAccount() {
         return bankAccount;
     }
-
 
     public String getCountry() {
         return country;
@@ -69,25 +45,17 @@ public class Vendor {
 
     // Setters
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-
     public void setName(String name) {
         this.name = name;
     }
-
 
     public void setEmail(String email) {
         this.email = email;
     }
 
-
     public void setBankAccount(String bankAccount) {
         this.bankAccount = bankAccount;
     }
-
 
     public void setCountry(String country) {
         this.country = country;
