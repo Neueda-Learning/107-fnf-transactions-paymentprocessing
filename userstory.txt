@@ -1,0 +1,33 @@
+
+⚡ Payment Processing Platform
+--> A simple and secure backend service built with Spring Boot to process business payments safely.
+--> It helps manage vendors, pay invoices without making duplicate payments, convert foreign currencies, and retry failed payments automatically.
+
+🚀 Main Features
+
+No Double Payments: 
+
+--> When a payment is in progress for an invoice, the system locks that invoice so nobody can pay it twice by mistake.
+-->International Currency Exchange: 
+	Automatically converts Indian Rupees (INR) to foreign currencies like US Dollars (USD) or British Pounds (GBP) and adds the correct exchange fees.
+--> Safe Network Retries (Idempotency): 
+	If your internet disconnects during a payment and you click "Pay" again, the system makes sure money is debited only once.
+--> Payment Tracking & History:
+	 Tracks every step of a payment from start to finish (Started ➔ Pending ➔ Completed or Failed).
+
+
+📦 How to Send a Payment (API Details):
+	Endpoint: POST /api/v1/payments
+
+Required Headers:
+
+Content-Type: application/json ➔ Tells the server your data is in JSON format.
+
+X-Idempotency-Key: <unique-id> ➔ A unique code (like a UUID) for the transaction so the server never charges the payment twice, even if you retry.
+
+
+
+
+
+
+
