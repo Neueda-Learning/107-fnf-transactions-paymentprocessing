@@ -5,6 +5,7 @@ import com.example.payment_processing.model.Vendor;
 import com.example.payment_processing.service.VendorService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
@@ -32,6 +33,13 @@ public class VendorController {
     public List<Vendor> getAllVendors() {
 
         return vendorService.getAllVendors();
+    }
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteVendor(@PathVariable Long id) {
+
+        vendorService.deleteVendor(id);
+
     }
 
 }
