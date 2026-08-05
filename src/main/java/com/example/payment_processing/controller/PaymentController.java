@@ -1,6 +1,7 @@
 package com.example.payment_processing.controller;
 
 import com.example.payment_processing.dto.CreatePaymentRequest;
+import com.example.payment_processing.dto.PaymentQuoteResponse;
 import com.example.payment_processing.model.Payment;
 import com.example.payment_processing.service.PaymentService;
 
@@ -32,6 +33,14 @@ public class PaymentController {
             @Valid @RequestBody CreatePaymentRequest request) {
 
         return paymentService.createPayment(request);
+    }
+
+    @GetMapping("/quote")
+    public PaymentQuoteResponse getPaymentQuote(
+            @RequestParam Long invoiceId,
+            @RequestParam String currency) {
+
+        return paymentService.getPaymentQuote(invoiceId, currency);
     }
 
 

@@ -1,6 +1,7 @@
 package com.example.payment_processing.service;
 
 import com.example.payment_processing.dto.CreatePaymentRequest;
+import com.example.payment_processing.dto.PaymentQuoteResponse;
 import com.example.payment_processing.exception.DuplicatePaymentException;
 import com.example.payment_processing.exception.InvalidStatusTransitionException;
 import com.example.payment_processing.exception.PaymentNotFoundException;
@@ -183,6 +184,66 @@ public class PaymentService {
     private record FxComputation(BigDecimal crossRate, BigDecimal fxFee, BigDecimal convertedAmount) {
     }
 
+
+    public PaymentQuoteResponse getPaymentQuote(Long invoiceId, String currency) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new PaymentNotFoundException("Invoice not found"));
+
+        String paymentCurrency = currency.toUpperCase();
+        String invoiceCurrency = invoice.getCurrency().toUpperCase();
+
+        PaymentQuoteResponse quote = new PaymentQuoteResponse();
+        quote.setInvoiceId(invoiceId);
+        quote.setInvoiceCurrency(invoiceCurrency);
+        quote.setInvoiceAmount(invoice.getInvoiceAmount());
+        quote.setPaymentCurrency(paymentCurrency);
+
+        if (paymentCurrency.equals(invoiceCurrency)) {
+            // Same currency — sender pays exactly the invoice amount, no FX
+            quote.setCrossCurrency(false);
+            quote.setRequiredPaymentAmount(invoice.getInvoiceAmount());
+            quote.setFxFeePercent(BigDecimal.ZERO);
+            quote.setFxFeeAmount(BigDecimal.ZERO);
+            quote.setConvertedAmount(invoice.getInvoiceAmount());
+        } else {
+            // Cross currency — reverse-compute required sender amount from invoice amount
+            ExchangeRate senderRate = exchangeRateRepository.findByCurrencyCode(paymentCurrency)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Exchange rate not found for currency: " + paymentCurrency));
+
+            ExchangeRate receiverRate = exchangeRateRepository.findByCurrencyCode(invoiceCurrency)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Exchange rate not found for currency: " + invoiceCurrency));
+
+            // crossRate: 1 unit of paymentCurrency = crossRate units of invoiceCurrency
+            BigDecimal crossRate = senderRate.getRateToUsd()
+                    .divide(receiverRate.getRateToUsd(), 6, RoundingMode.HALF_UP);
+
+            // invoiceAmount = paymentAmount * crossRate * (1 - fxFeePercent)
+            // => paymentAmount = invoiceAmount / (crossRate * (1 - fxFeePercent))
+            BigDecimal netFactor = BigDecimal.ONE.subtract(FX_FEE_PERCENT);
+            BigDecimal requiredPaymentAmount = invoice.getInvoiceAmount()
+                    .divide(crossRate.multiply(netFactor), 2, RoundingMode.HALF_UP);
+
+            // Recompute fee and converted amount from the required amount for display
+            BigDecimal baseConverted = requiredPaymentAmount
+                    .multiply(crossRate)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal fxFee = baseConverted
+                    .multiply(FX_FEE_PERCENT)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal convertedAmount = baseConverted.subtract(fxFee);
+
+            quote.setCrossCurrency(true);
+            quote.setRequiredPaymentAmount(requiredPaymentAmount);
+            quote.setCrossRate(crossRate);
+            quote.setFxFeePercent(FX_FEE_PERCENT.multiply(new BigDecimal("100")));
+            quote.setFxFeeAmount(fxFee);
+            quote.setConvertedAmount(convertedAmount);
+        }
+
+        return quote;
+    }
 
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
