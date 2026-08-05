@@ -33,5 +33,13 @@ public class VendorController {
 
         return vendorService.getAllVendors();
     }
+    @GetMapping("/{id}")
+    public Vendor getVendorById(
+            @PathVariable Long id) {
+
+        return vendorService.getVendorById(id);
+
+    }
+
 
 }
