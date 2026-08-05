@@ -5,11 +5,15 @@ import com.example.payment_processing.model.Invoice;
 import com.example.payment_processing.service.InvoiceService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/invoices")
@@ -25,6 +29,16 @@ public class InvoiceController {
     @ResponseStatus(HttpStatus.CREATED)
     public Invoice createInvoice(@Valid @RequestBody CreateInvoiceRequest request) {
         return invoiceService.createInvoice(request);
+    }
+
+    @GetMapping
+    public List<Invoice> getAllInvoices() {
+        return invoiceService.getAllInvoices();
+    }
+
+    @GetMapping("/{id}")
+    public Invoice getInvoiceById(@PathVariable Long id) {
+        return invoiceService.getInvoiceById(id);
     }
 }
 

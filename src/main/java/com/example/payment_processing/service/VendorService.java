@@ -29,6 +29,11 @@ public class VendorService {
 
         return vendorRepository.save(vendor);
     }
+    public void deleteVendor(Long id) {
+
+        vendorRepository.deleteById(id);
+
+    }
 
 
     public List<Vendor> getAllVendors() {

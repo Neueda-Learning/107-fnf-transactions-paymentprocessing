@@ -5,9 +5,11 @@ import com.example.payment_processing.model.Invoice;
 import com.example.payment_processing.model.Vendor;
 import com.example.payment_processing.repository.InvoiceRepository;
 import com.example.payment_processing.repository.VendorRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
+
+import java.util.List;
 
 @Service
 public class InvoiceService {
@@ -35,5 +37,14 @@ public class InvoiceService {
         invoice.setVendor(vendor);
 
         return invoiceRepository.save(invoice);
+    }
+
+    public List<Invoice> getAllInvoices() {
+        return invoiceRepository.findAll();
+    }
+
+    public Invoice getInvoiceById(Long id) {
+        return invoiceRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
     }
 }
