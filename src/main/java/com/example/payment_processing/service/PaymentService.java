@@ -44,8 +44,7 @@ public class PaymentService {
                     "Invoice already has a successful payment");
         }
 
-        Vendor vendor = vendorRepository.findById(request.getVendorId())
-                .orElseThrow(() -> new RuntimeException("Vendor not found"));
+
 
         Invoice invoice = invoiceRepository.findById(request.getInvoiceId())
                 .orElseThrow(() -> new RuntimeException("Invoice not found"));
@@ -57,7 +56,7 @@ public class PaymentService {
         payment.setReceiverAccount(request.getReceiverAccount());
         payment.setCreatedAt(LocalDateTime.now());
         payment.setStatus(PaymentStatus.CREATED);
-        payment.setVendor(vendor);
+
         payment.setInvoice(invoice);
 
 
@@ -65,5 +64,10 @@ public class PaymentService {
 
 
         return paymentRepository.save(payment);
+    }
+    public Payment getPaymentById(Long id) {
+
+        return paymentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
     }
 }

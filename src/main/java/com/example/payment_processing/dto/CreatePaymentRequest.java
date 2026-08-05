@@ -5,8 +5,7 @@ import java.math.BigDecimal;
 
 public class CreatePaymentRequest {
 
-    @NotNull
-    private Long vendorId;
+
 
     @NotNull
     private Long invoiceId;
@@ -24,14 +23,6 @@ public class CreatePaymentRequest {
     @NotBlank
     private String receiverAccount;
 
-
-    public Long getVendorId() {
-        return vendorId;
-    }
-
-    public void setVendorId(Long vendorId) {
-        this.vendorId = vendorId;
-    }
 
 
     public Long getInvoiceId() {
