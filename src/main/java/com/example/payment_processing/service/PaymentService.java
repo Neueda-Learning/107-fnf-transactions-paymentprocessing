@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -51,7 +52,7 @@ public class PaymentService {
             throw new DuplicatePaymentException(
                     "Invoice already has a successful payment"
             );
-            throw new RuntimeException("Invoice already has a successful payment");
+
         }
 
 
