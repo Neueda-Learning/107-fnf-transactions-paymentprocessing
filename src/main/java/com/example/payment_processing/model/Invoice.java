@@ -17,6 +17,9 @@ public class Invoice {
     @Column(nullable = false)
     private BigDecimal invoiceAmount;
 
+    @Column(nullable = false, length = 3)
+    private String currency;
+
     @ManyToOne
     @JoinColumn(name="vendor_id", nullable=false)
     private Vendor vendor;
@@ -53,6 +56,14 @@ public class Invoice {
 
     public void setInvoiceAmount(BigDecimal invoiceAmount) {
         this.invoiceAmount = invoiceAmount;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public Vendor getVendor() {

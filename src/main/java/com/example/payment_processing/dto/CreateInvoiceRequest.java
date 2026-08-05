@@ -18,6 +18,9 @@ public class CreateInvoiceRequest {
     @NotNull
     private Long vendorId;
 
+    @NotBlank
+    private String currency;
+
     public String getInvoiceNumber() {
         return invoiceNumber;
     }
@@ -40,6 +43,14 @@ public class CreateInvoiceRequest {
 
     public void setVendorId(Long vendorId) {
         this.vendorId = vendorId;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 }
 
