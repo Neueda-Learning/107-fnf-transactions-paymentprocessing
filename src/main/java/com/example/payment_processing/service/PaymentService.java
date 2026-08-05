@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +29,7 @@ public class PaymentService {
 
     private static final BigDecimal MAX_PAYMENT_AMOUNT = new BigDecimal("1000000");
     private static final BigDecimal FX_FEE_PERCENT = new BigDecimal("0.02"); // 2% forex fee
+    private static final BigDecimal CROSS_CURRENCY_TOLERANCE = new BigDecimal("0.01");
 
     private final PaymentRepository paymentRepository;
     private final VendorRepository vendorRepository;
@@ -94,10 +94,24 @@ public class PaymentService {
                     "Sender account and receiver account must be different");
         }
 
-        // Payment amount must match invoice amount
-        if (request.getAmount().compareTo(invoice.getInvoiceAmount()) != 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Payment amount does not match invoice amount of " + invoice.getInvoiceAmount());
+        String senderCurrency = request.getCurrency().toUpperCase();
+        String receiverCurrency = invoice.getCurrency().toUpperCase();
+
+        FxComputation fxComputation = null;
+        if (senderCurrency.equals(receiverCurrency)) {
+            if (request.getAmount().compareTo(invoice.getInvoiceAmount()) != 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Payment amount does not match invoice amount of " + invoice.getInvoiceAmount());
+            }
+        } else {
+            fxComputation = computeFxDetails(request.getAmount(), senderCurrency, receiverCurrency);
+
+            if (!isWithinTolerance(invoice.getInvoiceAmount(), fxComputation.convertedAmount(), CROSS_CURRENCY_TOLERANCE)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Converted payment amount " + fxComputation.convertedAmount()
+                                + " is outside allowed tolerance of " + CROSS_CURRENCY_TOLERANCE
+                                + " for invoice amount of " + invoice.getInvoiceAmount());
+            }
         }
 
         // Receiver account must match vendor bank account from invoice vendor
@@ -112,7 +126,7 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setAmount(request.getAmount());
-        payment.setCurrency(request.getCurrency().toUpperCase());
+        payment.setCurrency(senderCurrency);
         payment.setSenderAccount(request.getSenderAccount());
         payment.setReceiverAccount(request.getReceiverAccount());
         payment.setCreatedAt(LocalDateTime.now());
@@ -121,46 +135,52 @@ public class PaymentService {
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        // If currencies differ, compute FX conversion and store fx details
-        String senderCurrency = request.getCurrency().toUpperCase();
-        String receiverCurrency = invoice.getCurrency().toUpperCase();
-
-        if (!senderCurrency.equals(receiverCurrency)) {
-            ExchangeRate senderRate = exchangeRateRepository.findByCurrencyCode(senderCurrency)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Exchange rate not found for currency: " + senderCurrency));
-
-            ExchangeRate receiverRate = exchangeRateRepository.findByCurrencyCode(receiverCurrency)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Exchange rate not found for currency: " + receiverCurrency));
-
-            // rate = senderRateToUsd / receiverRateToUsd
-            BigDecimal crossRate = senderRate.getRateToUsd()
-                    .divide(receiverRate.getRateToUsd(), 6, RoundingMode.HALF_UP);
-
-            BigDecimal baseConverted = request.getAmount()
-                    .multiply(crossRate)
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            BigDecimal fxFee = baseConverted
-                    .multiply(FX_FEE_PERCENT)
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            BigDecimal convertedAmount = baseConverted.subtract(fxFee);
-
+        if (fxComputation != null) {
             PaymentFxDetails fxDetails = new PaymentFxDetails();
             fxDetails.setPayment(savedPayment);
             fxDetails.setSenderCurrency(senderCurrency);
             fxDetails.setReceiverCurrency(receiverCurrency);
-            fxDetails.setExchangeRate(crossRate);
-            fxDetails.setFxFeeAmount(fxFee);
-            fxDetails.setConvertedAmount(convertedAmount);
+            fxDetails.setExchangeRate(fxComputation.crossRate());
+            fxDetails.setFxFeeAmount(fxComputation.fxFee());
+            fxDetails.setConvertedAmount(fxComputation.convertedAmount());
             fxDetails.setConvertedAt(LocalDateTime.now());
 
             paymentFxDetailsRepository.save(fxDetails);
         }
 
         return savedPayment;
+    }
+
+    private FxComputation computeFxDetails(BigDecimal paymentAmount, String senderCurrency, String receiverCurrency) {
+        ExchangeRate senderRate = exchangeRateRepository.findByCurrencyCode(senderCurrency)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Exchange rate not found for currency: " + senderCurrency));
+
+        ExchangeRate receiverRate = exchangeRateRepository.findByCurrencyCode(receiverCurrency)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Exchange rate not found for currency: " + receiverCurrency));
+
+        BigDecimal crossRate = senderRate.getRateToUsd()
+                .divide(receiverRate.getRateToUsd(), 6, RoundingMode.HALF_UP);
+
+        BigDecimal baseConverted = paymentAmount
+                .multiply(crossRate)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal fxFee = baseConverted
+                .multiply(FX_FEE_PERCENT)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal convertedAmount = baseConverted.subtract(fxFee);
+
+        return new FxComputation(crossRate, fxFee, convertedAmount);
+    }
+
+    private boolean isWithinTolerance(BigDecimal expectedAmount, BigDecimal actualAmount, BigDecimal tolerance) {
+        return expectedAmount.subtract(actualAmount).abs().compareTo(tolerance) <= 0;
+    }
+
+    private record FxComputation(BigDecimal crossRate, BigDecimal fxFee, BigDecimal convertedAmount) {
     }
 
 
