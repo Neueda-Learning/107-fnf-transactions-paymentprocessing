@@ -4,11 +4,15 @@ import com.example.payment_processing.dto.CreatePaymentRequest;
 import com.example.payment_processing.exception.DuplicatePaymentException;
 import com.example.payment_processing.exception.InvalidStatusTransitionException;
 import com.example.payment_processing.exception.PaymentNotFoundException;
+import com.example.payment_processing.model.ExchangeRate;
 import com.example.payment_processing.model.Invoice;
 import com.example.payment_processing.model.Payment;
+import com.example.payment_processing.model.PaymentFxDetails;
 import com.example.payment_processing.model.PaymentStatus;
 import com.example.payment_processing.model.Vendor;
+import com.example.payment_processing.repository.ExchangeRateRepository;
 import com.example.payment_processing.repository.InvoiceRepository;
+import com.example.payment_processing.repository.PaymentFxDetailsRepository;
 import com.example.payment_processing.repository.PaymentRepository;
 import com.example.payment_processing.repository.VendorRepository;
 import org.springframework.http.HttpStatus;
@@ -16,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,19 +29,24 @@ import java.util.List;
 public class PaymentService {
 
     private static final BigDecimal MAX_PAYMENT_AMOUNT = new BigDecimal("1000000");
+    private static final BigDecimal FX_FEE_PERCENT = new BigDecimal("0.02"); // 2% forex fee
 
     private final PaymentRepository paymentRepository;
     private final VendorRepository vendorRepository;
     private final InvoiceRepository invoiceRepository;
-
+    private final ExchangeRateRepository exchangeRateRepository;
+    private final PaymentFxDetailsRepository paymentFxDetailsRepository;
 
     public PaymentService(PaymentRepository paymentRepository,
                           VendorRepository vendorRepository,
-                          InvoiceRepository invoiceRepository) {
-
+                          InvoiceRepository invoiceRepository,
+                          ExchangeRateRepository exchangeRateRepository,
+                          PaymentFxDetailsRepository paymentFxDetailsRepository) {
         this.paymentRepository = paymentRepository;
         this.vendorRepository = vendorRepository;
         this.invoiceRepository = invoiceRepository;
+        this.exchangeRateRepository = exchangeRateRepository;
+        this.paymentFxDetailsRepository = paymentFxDetailsRepository;
     }
 
     public Payment createPayment(CreatePaymentRequest request) {
@@ -101,16 +112,55 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setAmount(request.getAmount());
-        payment.setCurrency(request.getCurrency());
+        payment.setCurrency(request.getCurrency().toUpperCase());
         payment.setSenderAccount(request.getSenderAccount());
         payment.setReceiverAccount(request.getReceiverAccount());
         payment.setCreatedAt(LocalDateTime.now());
         payment.setStatus(PaymentStatus.CREATED);
-
         payment.setInvoice(invoice);
 
+        Payment savedPayment = paymentRepository.save(payment);
 
-        return paymentRepository.save(payment);
+        // If currencies differ, compute FX conversion and store fx details
+        String senderCurrency = request.getCurrency().toUpperCase();
+        String receiverCurrency = invoice.getCurrency().toUpperCase();
+
+        if (!senderCurrency.equals(receiverCurrency)) {
+            ExchangeRate senderRate = exchangeRateRepository.findByCurrencyCode(senderCurrency)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Exchange rate not found for currency: " + senderCurrency));
+
+            ExchangeRate receiverRate = exchangeRateRepository.findByCurrencyCode(receiverCurrency)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Exchange rate not found for currency: " + receiverCurrency));
+
+            // rate = senderRateToUsd / receiverRateToUsd
+            BigDecimal crossRate = senderRate.getRateToUsd()
+                    .divide(receiverRate.getRateToUsd(), 6, RoundingMode.HALF_UP);
+
+            BigDecimal baseConverted = request.getAmount()
+                    .multiply(crossRate)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal fxFee = baseConverted
+                    .multiply(FX_FEE_PERCENT)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal convertedAmount = baseConverted.subtract(fxFee);
+
+            PaymentFxDetails fxDetails = new PaymentFxDetails();
+            fxDetails.setPayment(savedPayment);
+            fxDetails.setSenderCurrency(senderCurrency);
+            fxDetails.setReceiverCurrency(receiverCurrency);
+            fxDetails.setExchangeRate(crossRate);
+            fxDetails.setFxFeeAmount(fxFee);
+            fxDetails.setConvertedAmount(convertedAmount);
+            fxDetails.setConvertedAt(LocalDateTime.now());
+
+            paymentFxDetailsRepository.save(fxDetails);
+        }
+
+        return savedPayment;
     }
 
 
