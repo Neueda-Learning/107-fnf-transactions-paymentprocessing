@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
@@ -24,6 +25,11 @@ public class PaymentController {
     public Payment createPayment(@Valid @RequestBody CreatePaymentRequest request) {
         return paymentService.createPayment(request);
     }
+    @GetMapping
+    public List<Payment> getAllPayments() {
+
+        return paymentService.getAllPayments();
+
     @GetMapping("/{id}")
     public Payment getPaymentById(
             @PathVariable Long id) {
