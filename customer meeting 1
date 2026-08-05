@@ -8,7 +8,7 @@ The following requirements were discussed and agreed upon during the client meet
 - Display payment status and transaction history.
 - Generate proof of successful payments.
 
-## Vendor Management
+## Vendor Management//done
 - Allow users to add new vendors.
 - Store vendor information for future payments.
 
