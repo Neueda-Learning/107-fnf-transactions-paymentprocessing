@@ -1,6 +1,9 @@
 package com.example.payment_processing.service;
 
 import com.example.payment_processing.dto.CreatePaymentRequest;
+import com.example.payment_processing.exception.DuplicatePaymentException;
+import com.example.payment_processing.exception.InvalidStatusTransitionException;
+import com.example.payment_processing.exception.PaymentNotFoundException;
 import com.example.payment_processing.model.Invoice;
 import com.example.payment_processing.model.Payment;
 import com.example.payment_processing.model.PaymentStatus;
@@ -12,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,9 +27,11 @@ public class PaymentService {
     private final VendorRepository vendorRepository;
     private final InvoiceRepository invoiceRepository;
 
+
     public PaymentService(PaymentRepository paymentRepository,
                           VendorRepository vendorRepository,
                           InvoiceRepository invoiceRepository) {
+
         this.paymentRepository = paymentRepository;
         this.vendorRepository = vendorRepository;
         this.invoiceRepository = invoiceRepository;
@@ -41,12 +45,21 @@ public class PaymentService {
                         PaymentStatus.COMPLETED
                 );
 
+
         if (alreadyPaid) {
+
+            throw new DuplicatePaymentException(
+                    "Invoice already has a successful payment"
+            );
             throw new RuntimeException("Invoice already has a successful payment");
         }
 
+
         Invoice invoice = invoiceRepository.findById(request.getInvoiceId())
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
+                .orElseThrow(() ->
+                        new PaymentNotFoundException("Invoice not found")
+                );
+
 
         // Amount must be greater than 0
         if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -92,24 +105,37 @@ public class PaymentService {
         payment.setReceiverAccount(request.getReceiverAccount());
         payment.setCreatedAt(LocalDateTime.now());
         payment.setStatus(PaymentStatus.CREATED);
+
         payment.setInvoice(invoice);
+
 
         return paymentRepository.save(payment);
     }
+
 
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }
 
+
     public Payment getPaymentById(Long id) {
         return paymentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
-    }
+.orElseThrow(() ->
+        new PaymentNotFoundException(
+                "Payment with id " + id + " not found"
+        )
+);
 
+}
     public Payment updatePaymentStatus(Long id, PaymentStatus newStatus) {
 
+
         Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+                .orElseThrow(() ->
+                        new PaymentNotFoundException(
+                                "Payment with id " + id + " not found"
+                        )
+                );
 
         PaymentStatus currentStatus = payment.getStatus();
 
@@ -119,16 +145,21 @@ public class PaymentService {
         );
 
         if (!validTransition) {
-            throw new RuntimeException(
-                    "Invalid payment status transition from "
-                            + currentStatus + " to " + newStatus
+
+            throw new InvalidStatusTransitionException(
+                    "Cannot move payment status from "
+                            + currentStatus
+                            + " to "
+                            + newStatus
             );
         }
 
         payment.setStatus(newStatus);
 
+
         return paymentRepository.save(payment);
     }
+
 
     private boolean isValidStatusTransition(
             PaymentStatus currentStatus,
