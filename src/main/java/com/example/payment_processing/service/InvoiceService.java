@@ -34,6 +34,7 @@ public class InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setInvoiceNumber(request.getInvoiceNumber());
         invoice.setInvoiceAmount(request.getInvoiceAmount());
+        invoice.setCurrency(request.getCurrency().toUpperCase());
         invoice.setVendor(vendor);
 
         return invoiceRepository.save(invoice);
