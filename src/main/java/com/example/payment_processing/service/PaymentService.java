@@ -28,10 +28,8 @@ import java.util.List;
 @Service
 public class PaymentService {
 
-    private static final BigDecimal MAX_PAYMENT_AMOUNT =
-            new BigDecimal("1000000");
     private static final BigDecimal MAX_PAYMENT_AMOUNT = new BigDecimal("1000000");
-    private static final BigDecimal FX_FEE_PERCENT = new BigDecimal("0.02"); // 2% forex fee
+    private static final BigDecimal FX_FEE_PERCENT = new BigDecimal("0.02");
     private static final BigDecimal CROSS_CURRENCY_TOLERANCE = new BigDecimal("0.01");
 
     private final PaymentRepository paymentRepository;
@@ -52,69 +50,36 @@ public class PaymentService {
         this.paymentFxDetailsRepository = paymentFxDetailsRepository;
     }
 
-
     public Payment createPayment(CreatePaymentRequest request) {
-
         boolean alreadyPaid =
                 paymentRepository.existsByInvoice_IdAndStatus(
                         request.getInvoiceId(),
                         PaymentStatus.COMPLETED
                 );
-
-
         if (alreadyPaid) {
-
             throw new DuplicatePaymentException(
                     "Invoice already has a successful payment"
             );
-
         }
-
 
         Invoice invoice = invoiceRepository.findById(request.getInvoiceId())
-                .orElseThrow(() ->
-                        new PaymentNotFoundException("Invoice not found")
-                );
+                .orElseThrow(() -> new PaymentNotFoundException("Invoice not found"));
 
-
-        // Amount must be greater than 0
         if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Amount must be greater than 0"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must be greater than 0");
         }
 
-
-        // Amount must not exceed maximum limit
         if (request.getAmount().compareTo(MAX_PAYMENT_AMOUNT) > 0) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Amount must not exceed 1,000,000"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must not exceed 1,000,000");
         }
 
-
-        // Amount must have maximum 2 decimal places
         if (request.getAmount().scale() > 2) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Amount must have maximum 2 decimal places"
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount must have maximum 2 decimal places");
         }
 
-
-        // Sender and receiver accounts cannot be same
-        if (request.getSenderAccount()
-                .equalsIgnoreCase(request.getReceiverAccount())) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Sender account and receiver account must be different"
-            );
+        if (request.getSenderAccount().equalsIgnoreCase(request.getReceiverAccount())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Sender account and receiver account must be different");
         }
 
         String senderCurrency = request.getCurrency().toUpperCase();
@@ -128,50 +93,24 @@ public class PaymentService {
             }
         } else {
             fxComputation = computeFxDetails(request.getAmount(), senderCurrency, receiverCurrency);
-
-            if (!isWithinTolerance(invoice.getInvoiceAmount(), fxComputation.convertedAmount(), CROSS_CURRENCY_TOLERANCE)) {
+            if (!isWithinTolerance(invoice.getInvoiceAmount(), fxComputation.convertedAmount())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Converted payment amount " + fxComputation.convertedAmount()
                                 + " is outside allowed tolerance of " + CROSS_CURRENCY_TOLERANCE
                                 + " for invoice amount of " + invoice.getInvoiceAmount());
             }
-
-        BigDecimal invoiceAmount = invoice.getInvoiceAmount();
-
-        if (request.getAmount().compareTo(invoiceAmount) < 0) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Payment amount cannot be less than invoice amount of "
-                            + invoiceAmount
-            );
         }
 
-
-        // Receiver account must match vendor bank account
         Vendor vendor = vendorRepository.findById(invoice.getVendor().getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Vendor not found"
-                        )
-                );
-
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vendor not found"));
 
         if (vendor.getBankAccount() == null ||
-                !vendor.getBankAccount()
-                        .equalsIgnoreCase(request.getReceiverAccount())) {
-
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Receiver account does not match vendor bank account"
-            );
+                !vendor.getBankAccount().equalsIgnoreCase(request.getReceiverAccount())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Receiver account does not match vendor bank account");
         }
 
-
         Payment payment = new Payment();
-
         payment.setAmount(request.getAmount());
         payment.setCurrency(senderCurrency);
         payment.setSenderAccount(request.getSenderAccount());
@@ -191,7 +130,6 @@ public class PaymentService {
             fxDetails.setFxFeeAmount(fxComputation.fxFee());
             fxDetails.setConvertedAmount(fxComputation.convertedAmount());
             fxDetails.setConvertedAt(LocalDateTime.now());
-
             paymentFxDetailsRepository.save(fxDetails);
         }
 
@@ -223,13 +161,12 @@ public class PaymentService {
         return new FxComputation(crossRate, fxFee, convertedAmount);
     }
 
-    private boolean isWithinTolerance(BigDecimal expectedAmount, BigDecimal actualAmount, BigDecimal tolerance) {
-        return expectedAmount.subtract(actualAmount).abs().compareTo(tolerance) <= 0;
+    private boolean isWithinTolerance(BigDecimal expectedAmount, BigDecimal actualAmount) {
+        return expectedAmount.subtract(actualAmount).abs().compareTo(CROSS_CURRENCY_TOLERANCE) <= 0;
     }
 
     private record FxComputation(BigDecimal crossRate, BigDecimal fxFee, BigDecimal convertedAmount) {
     }
-
 
     public PaymentQuoteResponse getPaymentQuote(Long invoiceId, String currency) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
@@ -291,51 +228,33 @@ public class PaymentService {
         return quote;
     }
 
-
     public List<Payment> getAllPayments() {
-
         return paymentRepository.findAll();
-
     }
 
-
-
     public Payment getPaymentById(Long id) {
-
         return paymentRepository.findById(id)
                 .orElseThrow(() ->
                         new PaymentNotFoundException(
                                 "Payment with id " + id + " not found"
                         )
                 );
-
     }
 
-
-
     public Payment updatePaymentStatus(Long id, PaymentStatus newStatus) {
-
-
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() ->
                         new PaymentNotFoundException(
                                 "Payment with id " + id + " not found"
                         )
                 );
-
-
         PaymentStatus currentStatus = payment.getStatus();
-
-
         boolean validTransition =
                 isValidStatusTransition(
                         currentStatus,
                         newStatus
                 );
-
-
         if (!validTransition) {
-
             throw new InvalidStatusTransitionException(
                     "Cannot move payment status from "
                             + currentStatus
@@ -343,43 +262,23 @@ public class PaymentService {
                             + newStatus
             );
         }
-
-
         payment.setStatus(newStatus);
-
-
         return paymentRepository.save(payment);
     }
-
-
 
     private boolean isValidStatusTransition(
             PaymentStatus currentStatus,
             PaymentStatus newStatus) {
-
-
         return switch (currentStatus) {
+            case CREATED -> newStatus == PaymentStatus.VALIDATED;
+            case VALIDATED -> newStatus == PaymentStatus.SENT;
+            case SENT -> newStatus == PaymentStatus.COMPLETED
+                    || newStatus == PaymentStatus.FAILED;
+            case FAILED -> newStatus == PaymentStatus.CREATED;
 
-            case CREATED ->
-                    newStatus == PaymentStatus.VALIDATED;
-
-
-            case VALIDATED ->
-                    newStatus == PaymentStatus.SENT;
-
-
-            case SENT ->
-                    newStatus == PaymentStatus.COMPLETED
-                            || newStatus == PaymentStatus.FAILED;
-
-
-            case FAILED ->
-                    newStatus == PaymentStatus.CREATED;
-
-
-            case COMPLETED ->
-                    false;
+            case COMPLETED -> false;
         };
     }
-
 }
+
+
