@@ -1,5 +1,6 @@
 package com.example.payment_processing.controller;
 
+import com.example.payment_processing.exception.PaymentFxDetailsNotFoundException;
 import com.example.payment_processing.model.PaymentFxDetails;
 import com.example.payment_processing.service.PaymentFxDetailsService;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,5 +45,14 @@ class PaymentFxDetailsControllerTest {
 
         assertEquals(expected, result);
         verify(paymentFxDetailsService).getPaymentFxDetailsById(1L);
+    }
+
+    @Test
+    void getPaymentFxDetailsById_whenNotFound_shouldThrowPaymentFxDetailsNotFoundException() {
+        when(paymentFxDetailsService.getPaymentFxDetailsById(999L))
+                .thenThrow(new PaymentFxDetailsNotFoundException("Payment FX details with id 999 not found"));
+
+        assertThrows(PaymentFxDetailsNotFoundException.class,
+                () -> paymentFxDetailsController.getPaymentFxDetailsById(999L));
     }
 }
