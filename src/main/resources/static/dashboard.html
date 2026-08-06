@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Processing Platform</title>
+    <link rel="stylesheet" href="css/CssfileDashboard.css">
+</head>
+<body>
+
+<!-- Toast Notification Container -->
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+<div class="container">
+    <!-- Top Header Bar -->
+    <header>
+        <div class="brand">
+            <h1>Payment Processing Platform</h1>
+            <span class="status-badge"><span class="dot"></span> Gateway Active</span>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="openModal('vendorModal')">+ Add Vendor</button>
+            <button class="btn btn-primary" onclick="openModal('invoiceModal')">+ Create Invoice</button>
+        </div>
+    </header>
+
+    <!-- Navigation Bar (Now includes Overview/Dashboard tab) -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('overviewTab', this)">📊 Overview</button>
+        <button class="tab-btn" onclick="switchTab('invoicesTab', this)">📄 Invoices</button>
+        <button class="tab-btn" onclick="switchTab('paymentsTab', this)">💳 Payments</button>
+        <button class="tab-btn" onclick="switchTab('vendorsTab', this)">🏢 Vendors</button>
+        <button class="tab-btn" onclick="switchTab('auditTab', this)">🔍 Audit Logs</button>
+    </div>
+
+    <!-- ─── PAGE 1: OVERVIEW / DASHBOARD (Contains KPI Cards) ─── -->
+    <div id="overviewTab" class="tab-view active">
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total Disbursed</div>
+                <div class="kpi-value" id="kpiDisbursed">₹0</div>
+                <div class="kpi-sub">Total settled volume</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Pending Invoices</div>
+                <div class="kpi-value" id="kpiPending">0</div>
+                <div class="kpi-sub">Unpaid invoices</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Active Vendors</div>
+                <div class="kpi-value" id="kpiVendors">0</div>
+                <div class="kpi-sub">Registered recipients</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Failed Transactions</div>
+                <div class="kpi-value" id="kpiFailed">0</div>
+                <div class="kpi-sub">Error logs</div>
+            </div>
+        </div>
+
+        <div class="page-header">
+            <h2>Recent System Activity</h2>
+            <p class="page-subtitle">Quick preview of recent payment processing actions</p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Payment ID</th>
+                    <th>Invoice ID</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="overviewRecentBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── PAGE 2: INVOICES PAGE VIEW ─── -->
+    <div id="invoicesTab" class="tab-view">
+        <div class="page-header">
+            <h2>Invoice Management</h2>
+            <p class="page-subtitle">View and execute payments for vendor invoices</p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Invoice ID</th>
+                    <th>Created At</th>
+                    <th>Vendor</th>
+                    <th>Base Amount (INR)</th>
+                    <th>Vendor Currency</th>
+                    <th>Converted Amount (FX)</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="invoiceTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── PAGE 3: PAYMENTS PAGE VIEW ─── -->
+    <div id="paymentsTab" class="tab-view">
+        <div class="page-header">
+            <h2>Transaction History</h2>
+            <p class="page-subtitle">Filter and search payment executions across all lifecycle stages</p>
+        </div>
+
+        <div class="payments-toolbar">
+            <div class="filter-tabs" id="paymentFilterTabs">
+                <button class="filter-btn active" onclick="filterPayments('ALL', this)">All</button>
+                <button class="filter-btn" onclick="filterPayments('COMPLETED', this)">✅ Completed</button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="paymentSearch" class="form-control" placeholder="Search by Payment ID or Invoice…" oninput="filterPayments(null, null)">
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>Invoice</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Currency</th>
+                    <th>Sender Account</th>
+                    <th>Receiver Account</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    <th>Details</th>
+                </tr>
+                </thead>
+                <tbody id="paymentTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── PAGE 4: VENDORS PAGE VIEW ─── -->
+    <div id="vendorsTab" class="tab-view">
+        <div class="page-header">
+            <h2>Registered Vendors</h2>
+            <p class="page-subtitle">Manage company details, bank accounts, and preferred currencies</p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Vendor ID</th>
+                    <th>Vendor / Company</th>
+                    <th>Email</th>
+                    <th>Account Number</th>
+                    <th>Country / Currency</th>
+                </tr>
+                </thead>
+                <tbody id="vendorTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── PAGE 5: AUDIT LOGS PAGE VIEW ─── -->
+    <div id="auditTab" class="tab-view">
+        <div class="page-header">
+            <h2>System Audit Logs</h2>
+            <p class="page-subtitle">Real-time trail recording every payment status transition step</p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Payment ID</th>
+                    <th>Invoice ID</th>
+                    <th>Vendor</th>
+                    <th>Sender Account</th>
+                    <th>Receiver Account</th>
+                    <th>Settled Value</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="auditTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Add Vendor -->
+<div id="vendorModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Vendor</h3>
+            <button class="btn btn-secondary" onclick="closeModal('vendorModal')">✕</button>
+        </div>
+        <div class="form-group">
+            <label for="vName">Vendor / Company Name</label>
+            <input type="text" id="vName" class="form-control" placeholder="Acme Corp">
+        </div>
+        <div class="form-group">
+            <label for="vAcc">Bank Account Number</label>
+            <input type="text" id="vAcc" class="form-control" placeholder="Enter bank account number">
+        </div>
+        <div class="form-group">
+            <label for="vEmail">Vendor Email</label>
+            <input type="email" id="vEmail" class="form-control" placeholder="accounts@acme.com">
+        </div>
+        <!-- Inside MODAL: Add Vendor -->
+        <div class="form-group">
+            <label for="vCountry">Operating Currency / Country Code</label>
+            <input type="text" id="vCountry" class="form-control" placeholder="e.g. USD, GBP, EUR, JPY, CAD" maxlength="10">
+        </div>
+        <button id="btnSaveVendor" class="btn btn-primary btn-full" onclick="saveVendor()">Save Vendor</button>
+    </div>
+</div>
+
+<!-- MODAL: Create Invoice -->
+<div id="invoiceModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Create Invoice</h3>
+            <button class="btn btn-secondary" onclick="closeModal('invoiceModal')">✕</button>
+        </div>
+        <div class="form-group">
+            <label for="invVendorSelect">Recipient Vendor</label>
+            <select id="invVendorSelect" class="form-control" onchange="updateInvoiceFXPreview()"></select>
+        </div>
+        <div class="form-group">
+            <label id="invAmountLabel" for="invAmount">Invoice Amount</label>
+            <input type="number" id="invAmount" class="form-control" placeholder="600.00" min="0.01" step="0.01" oninput="updateInvoiceFXPreview()">
+        </div>
+        <div class="fx-box">
+            <div>Vendor Currency: <b id="invVendorCurrPreview">—</b></div>
+            <div>Exchange Rate: <span id="invFxRatePreview">—</span></div>
+            <hr style="border:none;border-top:1px solid var(--border-color);margin:8px 0">
+            <div>INR Equivalent: <b id="invConvertedPreview" style="color:var(--success)">—</b></div>
+        </div>
+        <button id="btnSaveInvoice" class="btn btn-primary btn-full" onclick="saveInvoice()">Create Invoice</button>
+    </div>
+</div>
+
+<!-- MODAL: Execute Payment -->
+<div id="payModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Execute Payment</h3>
+            <button class="btn btn-secondary" onclick="closeModal('payModal')">✕</button>
+        </div>
+
+        <div class="fx-box">
+            <div>Invoice ID: <b id="payInvId">—</b></div>
+            <div>Vendor: <b id="payVendorName">—</b></div>
+            <div>Vendor Bank Account: <code id="payVendorAcc">—</code></div>
+            <div>Target Currency: <b id="payTargetCurr">—</b></div>
+            <hr style="border:none;border-top:1px solid var(--border-color);margin:8px 0">
+            <div>Sender pays: <span id="payBaseInr">—</span></div>
+            <div>Forex Fee: <span id="payForexFee">—</span></div>
+            <div>Vendor receives: <b id="payFinalAmount" style="color:var(--success)">—</b></div>
+        </div>
+
+        <div class="form-group">
+            <label for="payIdempotency">Idempotency Key</label>
+            <input type="text" id="payIdempotency" class="form-control" readonly>
+        </div>
+
+        <div class="form-group inline-check">
+            <input type="checkbox" id="simFailure" onchange="toggleFailureReasonSelect()">
+            <label for="simFailure">Simulate network / validation failure</label>
+        </div>
+
+        <div id="failureReasonGroup" class="form-group hidden">
+            <label for="simReason" style="color:var(--danger)">Failure scenario</label>
+            <select id="simReason" class="form-control">
+                <option value="Sender and receiver bank account details cannot be identical (HTTP 400).">Sender &amp; receiver accounts overlap (HTTP 400)</option>
+                <option value="Invalid bank account format (HTTP 400).">Invalid account number format (HTTP 400)</option>
+                <option value="Duplicate payment attempt detected for locked invoice (HTTP 409).">Duplicate payment — invoice locked (HTTP 409)</option>
+                <option value="Banking gateway network connection timeout (HTTP 500).">Gateway network timeout (HTTP 500)</option>
+            </select>
+        </div>
+
+        <div id="paymentProgress" class="payment-progress hidden">
+            <div class="payment-steps">
+                <div id="step-created" class="payment-step step-pending">
+                    <div class="step-icon">1</div>
+                    <span class="step-label">Created</span>
+                </div>
+                <div class="step-connector"></div>
+                <div id="step-validated" class="payment-step step-pending">
+                    <div class="step-icon">2</div>
+                    <span class="step-label">Validated</span>
+                </div>
+                <div class="step-connector"></div>
+                <div id="step-sent" class="payment-step step-pending">
+                    <div class="step-icon">3</div>
+                    <span class="step-label">Sent</span>
+                </div>
+                <div class="step-connector"></div>
+                <div id="step-completed" class="payment-step step-pending">
+                    <div class="step-icon">4</div>
+                    <span class="step-label">Completed</span>
+                </div>
+            </div>
+            <div id="paymentProgressStatus" class="payment-progress-status"></div>
+        </div>
+
+        <button id="btnConfirmPayment" class="btn btn-success btn-full" onclick="processPayment()" style="margin-top:14px">
+            Confirm &amp; Execute Payment
+        </button>
+    </div>
+</div>
+
+<!-- MODAL: Payment Details -->
+<div id="paymentDetailModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <div>
+                <h3 id="pdTitle">Payment Details</h3>
+                <span id="pdSubtitle" style="font-size:12px;color:var(--text-muted)"></span>
+            </div>
+            <button class="btn btn-secondary" onclick="closeModal('paymentDetailModal')">✕</button>
+        </div>
+        <div id="paymentDetailContent"></div>
+    </div>
+</div>
+
+<script src="js/dashboard.js"></script>
+</body>
+</html>

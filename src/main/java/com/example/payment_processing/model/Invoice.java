@@ -3,6 +3,7 @@ package com.example.payment_processing.model;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "invoices")
@@ -19,6 +20,8 @@ public class Invoice {
 
     @Column(nullable = false, length = 3)
     private String currency;
+
+    private LocalDateTime createdAt;
 
     @ManyToOne
     @JoinColumn(name="vendor_id", nullable=false)
@@ -64,6 +67,14 @@ public class Invoice {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public Vendor getVendor() {

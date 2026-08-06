@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -35,6 +36,7 @@ public class InvoiceService {
         invoice.setInvoiceNumber(request.getInvoiceNumber());
         invoice.setInvoiceAmount(request.getInvoiceAmount());
         invoice.setCurrency(request.getCurrency().toUpperCase());
+        invoice.setCreatedAt(LocalDateTime.now());
         invoice.setVendor(vendor);
 
         return invoiceRepository.save(invoice);
