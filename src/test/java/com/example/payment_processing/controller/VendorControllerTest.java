@@ -12,6 +12,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,9 +68,27 @@ class VendorControllerTest {
     }
 
     @Test
+    void getVendorById_whenNotFound_shouldThrowRuntimeException() {
+        when(vendorService.getVendorById(999L))
+                .thenThrow(new RuntimeException("Vendor not found"));
+
+        assertThrows(RuntimeException.class,
+                () -> vendorController.getVendorById(999L));
+    }
+
+    @Test
     void deleteVendor_shouldDelegateToService() {
         vendorController.deleteVendor(1L);
 
         verify(vendorService).deleteVendor(1L);
+    }
+
+    @Test
+    void deleteVendor_whenNotFound_shouldThrowRuntimeException() {
+        doThrow(new RuntimeException("Vendor not found"))
+                .when(vendorService).deleteVendor(999L);
+
+        assertThrows(RuntimeException.class,
+                () -> vendorController.deleteVendor(999L));
     }
 }

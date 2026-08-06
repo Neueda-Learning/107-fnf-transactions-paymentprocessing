@@ -1,6 +1,7 @@
 package com.example.payment_processing.controller;
 
 import com.example.payment_processing.dto.CreateRefundRequest;
+import com.example.payment_processing.exception.PaymentNotFoundException;
 import com.example.payment_processing.model.Refund;
 import com.example.payment_processing.service.RefundService;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +43,42 @@ class RefundControllerTest {
     }
 
     @Test
+    void createRefund_whenPaymentNotFound_shouldThrowPaymentNotFoundException() {
+        when(refundService.createRefund(any()))
+                .thenThrow(new PaymentNotFoundException("Payment with id 99 not found"));
+
+        assertThrows(PaymentNotFoundException.class,
+                () -> refundController.createRefund(new CreateRefundRequest()));
+    }
+
+    @Test
+    void createRefund_whenPaymentNotCompleted_shouldThrowRuntimeException() {
+        when(refundService.createRefund(any()))
+                .thenThrow(new RuntimeException("Only completed payments can be refunded"));
+
+        assertThrows(RuntimeException.class,
+                () -> refundController.createRefund(new CreateRefundRequest()));
+    }
+
+    @Test
+    void createRefund_whenAlreadyRefunded_shouldThrowRuntimeException() {
+        when(refundService.createRefund(any()))
+                .thenThrow(new RuntimeException("Refund already exists for this payment"));
+
+        assertThrows(RuntimeException.class,
+                () -> refundController.createRefund(new CreateRefundRequest()));
+    }
+
+    @Test
+    void createRefund_whenNoRefundRequired_shouldThrowRuntimeException() {
+        when(refundService.createRefund(any()))
+                .thenThrow(new RuntimeException("No refund required. Payment amount matches invoice amount"));
+
+        assertThrows(RuntimeException.class,
+                () -> refundController.createRefund(new CreateRefundRequest()));
+    }
+
+    @Test
     void getAllRefunds_shouldDelegateToService() {
         List<Refund> expected = List.of(new Refund());
         when(refundService.getAllRefunds()).thenReturn(expected);
@@ -59,5 +98,14 @@ class RefundControllerTest {
 
         assertEquals(expected, result);
         verify(refundService).getRefundById(5L);
+    }
+
+    @Test
+    void getRefundById_whenNotFound_shouldThrowRuntimeException() {
+        when(refundService.getRefundById(999L))
+                .thenThrow(new RuntimeException("Refund with id 999 not found"));
+
+        assertThrows(RuntimeException.class,
+                () -> refundController.getRefundById(999L));
     }
 }
