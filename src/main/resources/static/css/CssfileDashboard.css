@@ -747,3 +747,21 @@ box-shadow:
 
 
 }
+
+/* Fix button click behavior */
+
+button {
+    cursor: pointer;
+}
+
+
+/* Modal visibility */
+
+.modal-overlay {
+    display: none;
+}
+
+
+.modal-overlay.active {
+    display: flex;
+}
