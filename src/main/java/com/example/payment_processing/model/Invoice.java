@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "invoices")
 public class Invoice {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,21 +22,32 @@ public class Invoice {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @ManyToOne
-    @JoinColumn(name="vendor_id", nullable=false)
+    @JoinColumn(name = "vendor_id", nullable = false)
     private Vendor vendor;
+
 
     public Invoice() {
     }
 
-    public Invoice(Long id, String invoiceNumber, BigDecimal invoiceAmount, Vendor vendor) {
+
+    public Invoice(Long id, String invoiceNumber, BigDecimal invoiceAmount, String currency, Vendor vendor) {
         this.id = id;
         this.invoiceNumber = invoiceNumber;
         this.invoiceAmount = invoiceAmount;
+        this.currency = currency;
         this.vendor = vendor;
     }
+
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
 
     public Long getId() {
         return id;
@@ -45,6 +57,7 @@ public class Invoice {
         this.id = id;
     }
 
+
     public String getInvoiceNumber() {
         return invoiceNumber;
     }
@@ -52,6 +65,7 @@ public class Invoice {
     public void setInvoiceNumber(String invoiceNumber) {
         this.invoiceNumber = invoiceNumber;
     }
+
 
     public BigDecimal getInvoiceAmount() {
         return invoiceAmount;
@@ -61,6 +75,7 @@ public class Invoice {
         this.invoiceAmount = invoiceAmount;
     }
 
+
     public String getCurrency() {
         return currency;
     }
@@ -68,6 +83,7 @@ public class Invoice {
     public void setCurrency(String currency) {
         this.currency = currency;
     }
+
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -77,6 +93,7 @@ public class Invoice {
         this.createdAt = createdAt;
     }
 
+
     public Vendor getVendor() {
         return vendor;
     }
@@ -84,5 +101,4 @@ public class Invoice {
     public void setVendor(Vendor vendor) {
         this.vendor = vendor;
     }
-
 }
