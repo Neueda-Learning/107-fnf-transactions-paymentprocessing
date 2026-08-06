@@ -1,33 +1,65 @@
-
-⚡ Payment Processing Platform
---> A simple and secure backend service built with Spring Boot to process business payments safely.
---> It helps manage vendors, pay invoices without making duplicate payments, convert foreign currencies, and retry failed payments automatically.
-
-🚀 Main Features
-
-No Double Payments: 
-
---> When a payment is in progress for an invoice, the system locks that invoice so nobody can pay it twice by mistake.
--->International Currency Exchange: 
-	Automatically converts Indian Rupees (INR) to foreign currencies like US Dollars (USD) or British Pounds (GBP) and adds the correct exchange fees.
---> Safe Network Retries (Idempotency): 
-	If your internet disconnects during a payment and you click "Pay" again, the system makes sure money is debited only once.
---> Payment Tracking & History:
-	 Tracks every step of a payment from start to finish (Started ➔ Pending ➔ Completed or Failed).
-
-
-📦 How to Send a Payment (API Details):
-	Endpoint: POST /api/v1/payments
-
-Required Headers:
-
-Content-Type: application/json ➔ Tells the server your data is in JSON format.
-
-X-Idempotency-Key: <unique-id> ➔ A unique code (like a UUID) for the transaction so the server never charges the payment twice, even if you retry.
-
-
-
-
-
-
-
+Day 1 user story
+As a business owner, I want a simple, auditable system to create invoices, manage vendors, and make payments so I can pay vendors reliably and track all payment activity for my business.
+User Story 1 — Create Invoice
+• Title: Create invoice
+• As a business owner
+• I want to create an invoice with customer, amount, currency, service date, and a system-generated unique invoice_id
+• So that invoices are the authoritative source for payments and bookkeeping
+• Acceptance criteria:
+    • POST /api/invoices creates an invoice and returns invoice_id
+    • invoice_id is unique (auto-increment or guaranteed unique)
+    • Required fields validated (customer, amount > 0, currency, service_date)
+    • Created invoice appears in list and detail views
+User Story 2 — Add & Manage Vendors
+• Title: Manage vendors
+• As a business owner
+• I want to add, edit, and list vendors (name, account number, bank, currency, contact)
+• So that I can maintain the vendors I pay and select them when creating payments
+• Acceptance criteria:
+    • POST /api/vendors persists vendor data; PUT/PATCH updates vendor
+    • account_number accepts alphanumeric values and enforces configurable length rules
+    • Vendor appears in dashboard vendor list and vendor detail pages
+User Story 3 — Create Payment Linked to an Invoice
+• Title: Create payment against invoice
+• As a business owner
+• I want to create a payment only for an existing invoice (full payment for now)
+• So that payments are always tied to invoices and duplicate payments are prevented
+• Acceptance criteria:
+    • POST /api/payments requires invoice_id and amount
+    • Payment creation rejected with friendly error if invoice missing, already paid, or amount mismatch
+    • Successful creation yields payment record with status = created and appears in payment history
+User Story 4 — Automated Payment Lifecycle
+• Title: Automate payment lifecycle
+• As a business owner
+• I want the system to automatically validate and progress payment status (created → validated → sent → completed/failed)
+• So I don’t have to manually update statuses and the system reliably reflects real state
+• Acceptance criteria:
+    • Backend performs validations and updates status automatically
+    • Failures set status = failed with recorded error details
+    • All transitions logged with timestamp and visible in activity log
+User Story 5 — Friendly Error Messages & Notifications
+• Title: User-friendly errors and notifications
+• As a business owner
+• I want clear dashboard notifications and friendly error popups for payment events and failures
+• So I can understand issues and take action without reading raw HTTP codes
+• Acceptance criteria:
+    • Dashboard notifications for payment created, validated, completed, and failed
+    • Frontend maps backend structured errors to readable messages and shows popups
+    • Optional: email notification toggle if owner wants email alerts
+User Story 6 — Payment Audit Log & Vendor History
+• Title: View audit logs and vendor history
+• As a business owner
+• I want to view a detailed payment/activity log and per-vendor payment history
+• So I can audit actions, reconcile payments, and answer queries from stakeholders
+• Acceptance criteria:
+    • Immutable log entries for each payment event with timestamp, actor, prev/new status, amounts, invoice_id, payment_id, and error details
+    • Filterable views by vendor, invoice, date range, and status
+    • Vendor detail page shows all payments to that vendor
+User Story 7 — Failure Simulation for Testing
+• Title: Simulate failures for safe testing
+• As a business owner (or tester)
+• I want a configurable failure-simulation mode (e.g., random error rate or specific error injection)
+• So we can validate error handling and ensure the UI shows correct messages before going live
+• Acceptance criteria:
+    • Admin/test API or dashboard toggle to configure failure injection rate or specific simulated errors
+    • Simulated failures trigger real error flows and are recorded in logs
