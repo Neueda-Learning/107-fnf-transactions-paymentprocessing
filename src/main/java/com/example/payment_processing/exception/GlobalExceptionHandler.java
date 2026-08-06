@@ -152,4 +152,20 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR
         );
     }
+
+    @ExceptionHandler(PaymentFxDetailsNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentFxDetailsNotFound(
+            PaymentFxDetailsNotFoundException exception) {
+
+        ErrorResponse error = new ErrorResponse(
+                "PAYMENT_FX_DETAILS_NOT_FOUND",
+                exception.getMessage(),
+                HttpStatus.NOT_FOUND.value()
+        );
+
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.NOT_FOUND
+        );
+    }
 }
