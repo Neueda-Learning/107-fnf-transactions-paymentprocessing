@@ -814,3 +814,102 @@ function viewPaymentDetails(payId) {
 
   openModal('paymentDetailModal');
 }
+
+
+
+// ─── 1. OPEN REFUND MODAL ───
+function openRefundModal(paymentId) {
+    // Find payment details from your active payments state/array
+    const payment = paymentsList.find(p => p.id === paymentId);
+    if (!payment) return;
+
+    document.getElementById('refPaymentId').textContent = payment.id;
+    document.getElementById('refInvoiceId').textContent = payment.invoiceId || 'N/A';
+    document.getElementById('refVendorName').textContent = payment.vendorName || 'N/A';
+    document.getElementById('refOriginalAmount').textContent = `₹${payment.amount}`;
+
+    openModal('refundModal');
+}
+
+// ─── 2. PROCESS REFUND API CALL ───
+async function processRefund() {
+    const paymentId = document.getElementById('refPaymentId').textContent;
+    const reason = document.getElementById('refReason').value;
+    const btn = document.getElementById('btnConfirmRefund');
+
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/v1/payments/${paymentId}/refund`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': crypto.randomUUID()
+            },
+            body: JSON.stringify({ reason: reason })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to issue refund');
+        }
+
+        alert('Refund processed successfully!');
+        closeModal('refundModal');
+        fetchPayments(); // Refresh payments table from backend
+    } catch (error) {
+        console.error('Refund Error:', error);
+        alert(`Error: ${error.message}`);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm & Issue Refund';
+    }
+}
+
+// ─── 3. UPDATE PAYMENTS TABLE RENDERING ───
+// Update your table row generator to include the Refund action button for COMPLETED payments
+function renderPaymentsTable(data) {
+    const tbody = document.getElementById('paymentTableBody');
+    tbody.innerHTML = data.map(p => `
+        <tr>
+            <td><code>${p.id}</code></td>
+            <td>${p.invoiceId || 'N/A'}</td>
+            <td>${p.vendorName}</td>
+            <td>₹${p.amount}</td>
+            <td>${p.currency}</td>
+            <td>₹${p.forexFee || 0}</td>
+            <td><code>${p.senderAccount}</code></td>
+            <td><code>${p.receiverAccount}</code></td>
+            <td><span class="status-badge ${p.status.toLowerCase()}">${p.status}</span></td>
+            <td>${new Date(p.createdAt).toLocaleString()}</td>
+            <td>
+                ${p.status === 'COMPLETED'
+                    ? `<button type="button" class="btn btn-sm btn-danger" onclick="openRefundModal('${p.id}')">Refund</button>`
+                    : `<button type="button" class="btn btn-sm btn-secondary" onclick="viewDetails('${p.id}')">Details</button>`
+                }
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ─── 4. UPDATE KPI CALCULATIONS ───
+function calculateKPIs(payments) {
+    const totalDisbursed = payments
+        .filter(p => p.status === 'COMPLETED')
+        .reduce((acc, p) => acc + p.amount, 0);
+
+    const totalRefunded = payments
+        .filter(p => p.status === 'REFUNDED')
+        .reduce((acc, p) => acc + p.amount, 0);
+
+    const totalForex = payments
+        .reduce((acc, p) => acc + (p.forexFee || 0), 0);
+
+    const failedCount = payments.filter(p => p.status === 'FAILED').length;
+
+    if (document.getElementById('kpiDisbursed')) document.getElementById('kpiDisbursed').textContent = `₹${totalDisbursed.toFixed(2)}`;
+    if (document.getElementById('kpiRefunded')) document.getElementById('kpiRefunded').textContent = `₹${totalRefunded.toFixed(2)}`;
+    if (document.getElementById('kpiForexCollected')) document.getElementById('kpiForexCollected').textContent = `₹${totalForex.toFixed(2)}`;
+    if (document.getElementById('kpiFailed')) document.getElementById('kpiFailed').textContent = failedCount;
+}
