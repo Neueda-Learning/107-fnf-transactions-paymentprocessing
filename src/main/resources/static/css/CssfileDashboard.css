@@ -765,3 +765,42 @@ button {
 .modal-overlay.active {
     display: flex;
 }
+
+
+/* Danger / Refund Button */
+.btn-danger {
+    background-color: var(--danger, #e63946);
+    color: #ffffff;
+    border: none;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* Status Badges for Refund & Forex */
+.status-badge.refunded {
+    background-color: rgba(230, 57, 70, 0.15);
+    color: #e63946;
+    border: 1px solid rgba(230, 57, 70, 0.3);
+}
+
+.status-badge.completed {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+/* Ensure KPI Grid expands for 6 cards */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}

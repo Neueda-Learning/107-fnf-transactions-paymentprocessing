@@ -26,6 +26,7 @@
         <button type="button" class="tab-btn active" onclick="switchTab('overviewTab', this)">📊 Overview</button>
         <button type="button" class="tab-btn" onclick="switchTab('invoicesTab', this)">📄 Invoices</button>
         <button type="button" class="tab-btn" onclick="switchTab('paymentsTab', this)">💳 Payments</button>
+        <button type="button" class="tab-btn" onclick="switchTab('forexTab', this)">💱 Forex Rates</button>
         <button type="button" class="tab-btn" onclick="switchTab('vendorsTab', this)">🏢 Vendors</button>
         <button type="button" class="tab-btn" onclick="switchTab('auditTab', this)">🔍 Audit Logs</button>
     </div>
@@ -42,6 +43,16 @@
                 <div class="kpi-title">Pending Invoices</div>
                 <div class="kpi-value" id="kpiPending">0</div>
                 <div class="kpi-sub">Unpaid invoices</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Total Refunded</div>
+                <div class="kpi-value" id="kpiRefunded" style="color:var(--danger, #e63946)">₹0</div>
+                <div class="kpi-sub">Processed refunds</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Forex Deductions</div>
+                <div class="kpi-value" id="kpiForexCollected">₹0</div>
+                <div class="kpi-sub">Total currency conversion fees</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-title">Active Vendors</div>
@@ -107,13 +118,15 @@
     <div id="paymentsTab" class="tab-view">
         <div class="page-header">
             <h2>Transaction History</h2>
-            <p class="page-subtitle">Filter and search payment executions across all lifecycle stages</p>
+            <p class="page-subtitle">Filter, search, and manage payment executions across all lifecycle stages</p>
         </div>
 
         <div class="payments-toolbar">
             <div class="filter-tabs" id="paymentFilterTabs">
                 <button type="button" class="filter-btn active" onclick="filterPayments('ALL', this)">All</button>
                 <button type="button" class="filter-btn" onclick="filterPayments('COMPLETED', this)">✅ Completed</button>
+                <button type="button" class="filter-btn" onclick="filterPayments('REFUNDED', this)">↩️ Refunded</button>
+                <button type="button" class="filter-btn" onclick="filterPayments('FAILED', this)">❌ Failed</button>
             </div>
             <div class="search-box">
                 <input type="text" id="paymentSearch" class="form-control" placeholder="Search by Payment ID or Invoice…" oninput="filterPayments(null, null)">
@@ -129,11 +142,12 @@
                     <th>Vendor</th>
                     <th>Amount</th>
                     <th>Currency</th>
+                    <th>Forex Fee</th>
                     <th>Sender Account</th>
                     <th>Receiver Account</th>
                     <th>Status</th>
                     <th>Created At</th>
-                    <th>Details</th>
+                    <th>Actions</th>
                 </tr>
                 </thead>
                 <tbody id="paymentTableBody"></tbody>
@@ -141,7 +155,52 @@
         </div>
     </div>
 
-    <!-- ─── PAGE 4: VENDORS PAGE VIEW ─── -->
+    <!-- ─── PAGE 4: FOREX MANAGEMENT PAGE VIEW ─── -->
+    <div id="forexTab" class="tab-view">
+        <div class="page-header">
+            <h2>Multi-Currency &amp; Forex Management</h2>
+            <p class="page-subtitle">Live exchange rates and foreign currency conversion rules</p>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Target Currency</th>
+                    <th>Exchange Rate (1 INR =)</th>
+                    <th>Inverse Rate (1 Unit =)</th>
+                    <th>Forex Fee Rate</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="forexTableBody">
+                <tr>
+                    <td><b>USD (US Dollar)</b></td>
+                    <td>0.012 USD</td>
+                    <td>₹83.50 INR</td>
+                    <td>1.5%</td>
+                    <td><span class="status-badge">Active</span></td>
+                </tr>
+                <tr>
+                    <td><b>GBP (British Pound)</b></td>
+                    <td>0.0095 GBP</td>
+                    <td>₹105.20 INR</td>
+                    <td>2.0%</td>
+                    <td><span class="status-badge">Active</span></td>
+                </tr>
+                <tr>
+                    <td><b>EUR (Euro)</b></td>
+                    <td>0.011 EUR</td>
+                    <td>₹90.10 INR</td>
+                    <td>1.8%</td>
+                    <td><span class="status-badge">Active</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── PAGE 5: VENDORS PAGE VIEW ─── -->
     <div id="vendorsTab" class="tab-view">
         <div class="page-header">
             <h2>Registered Vendors</h2>
@@ -164,7 +223,7 @@
         </div>
     </div>
 
-    <!-- ─── PAGE 5: AUDIT LOGS PAGE VIEW ─── -->
+    <!-- ─── PAGE 6: AUDIT LOGS PAGE VIEW ─── -->
     <div id="auditTab" class="tab-view">
         <div class="page-header">
             <h2>System Audit Logs</h2>
@@ -257,8 +316,8 @@
             <div>Vendor Bank Account: <code id="payVendorAcc">—</code></div>
             <div>Target Currency: <b id="payTargetCurr">—</b></div>
             <hr style="border:none;border-top:1px solid var(--border-color);margin:8px 0">
-            <div>Sender pays: <span id="payBaseInr">—</span></div>
-            <div>Forex Fee: <span id="payForexFee">—</span></div>
+            <div>Sender pays (Base INR): <span id="payBaseInr">—</span></div>
+            <div>Forex Fee Deducted: <span id="payForexFee" style="color:var(--danger)">—</span></div>
             <div>Vendor receives: <b id="payFinalAmount" style="color:var(--success)">—</b></div>
         </div>
 
@@ -309,6 +368,37 @@
 
         <button type="button" id="btnConfirmPayment" class="btn btn-success btn-full" onclick="processPayment()" style="margin-top:14px">
             Confirm &amp; Execute Payment
+        </button>
+    </div>
+</div>
+
+<!-- MODAL: Initiate Refund -->
+<div id="refundModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Initiate Payment Refund</h3>
+            <button type="button" class="btn btn-secondary" onclick="closeModal('refundModal')">✕</button>
+        </div>
+
+        <div class="fx-box">
+            <div>Payment ID: <b id="refPaymentId">—</b></div>
+            <div>Invoice ID: <b id="refInvoiceId">—</b></div>
+            <div>Vendor: <span id="refVendorName">—</span></div>
+            <div>Original Settled Amount: <b id="refOriginalAmount" style="color:var(--success)">—</b></div>
+        </div>
+
+        <div class="form-group">
+            <label for="refReason">Refund Reason</label>
+            <select id="refReason" class="form-control">
+                <option value="DUPLICATE_PAYMENT">Duplicate / Erroneous Payment</option>
+                <option value="INVOICE_CANCELLED">Invoice Cancelled</option>
+                <option value="VENDOR_REQUEST">Vendor Requested Refund</option>
+                <option value="SERVICE_NOT_RENDERED">Goods / Service Not Rendered</option>
+            </select>
+        </div>
+
+        <button type="button" id="btnConfirmRefund" class="btn btn-danger btn-full" onclick="processRefund()" style="margin-top:14px">
+            Confirm &amp; Issue Refund
         </button>
     </div>
 </div>
