@@ -313,16 +313,38 @@ function switchTab(tabId, el) {
   if (el) el.classList.add('active');
 }
 
+function populateVendorDropdown() {
+  const select = document.getElementById('invVendorSelect');
+  if (!select) return;
+
+  if (state.vendors.length === 0) {
+    select.innerHTML = '<option value="">No vendors available — please add a vendor first</option>';
+    return;
+  }
+
+  select.innerHTML = state.vendors.map(v =>
+    `<option value="${v.id}">${v.name} (${v.curr})</option>`
+  ).join('');
+}
+
 function openModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) {
+    console.error("Modal element not found:", id);
+    return;
+  }
+
   if (id === 'invoiceModal') {
     populateVendorDropdown();
     updateInvoiceFXPreview();
   }
-  document.getElementById(id).classList.add('active');
+
+  modal.classList.add('active');
 }
 
 function closeModal(id) {
-  document.getElementById(id).classList.remove('active');
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove('active');
   if (id === 'payModal') { resetPaymentSteps(); }
 }
 
@@ -333,8 +355,13 @@ function toggleFailureReasonSelect() {
 }
 
 function showToast(type, title, message) {
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
 
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
@@ -531,7 +558,7 @@ async function saveVendor() {
   const name = document.getElementById('vName').value.trim();
   const acc = document.getElementById('vAcc').value.trim();
   const email = document.getElementById('vEmail').value.trim();
-  const country = document.getElementById('vCountry').value.trim().toUpperCase(); // Formats typed currency to uppercase
+  const country = document.getElementById('vCountry').value.trim().toUpperCase();
 
   if (!name || !acc || !email || !country) {
     alert('Please fill out all vendor fields including currency code.');
@@ -574,6 +601,11 @@ function updateInvoiceFXPreview() {
 async function saveInvoice() {
   const vId = document.getElementById('invVendorSelect').value;
   const invoiceAmount = parseFloat(document.getElementById('invAmount').value);
+
+  if (!vId) {
+    alert('Please select a recipient vendor.');
+    return;
+  }
 
   if (!invoiceAmount || invoiceAmount <= 0) {
     alert('Please enter a valid positive invoice amount.');
