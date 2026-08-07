@@ -28,6 +28,8 @@ public class DataSeeder implements ApplicationRunner {
         seedRate("INR", "0.012000");   // 1 INR = 0.012 USD
         seedRate("GBP", "1.276596");   // 1 GBP ≈ 1.2766 USD  (aligned with 1 INR = 0.0094 GBP)
         seedRate("EUR", "1.090909");   // 1 EUR ≈ 1.0909 USD  (aligned with 1 INR = 0.011 EUR)
+        seedRate("JPY", "0.006800");   // 1 JPY ≈ 0.0068 USD
+        seedRate("CAD", "0.740000");   // 1 CAD ≈ 0.74 USD
     }
 
     private void seedRate(String code, String rate) {

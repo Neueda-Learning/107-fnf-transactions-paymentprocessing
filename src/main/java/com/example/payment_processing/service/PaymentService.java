@@ -16,6 +16,7 @@ import com.example.payment_processing.repository.InvoiceRepository;
 import com.example.payment_processing.repository.PaymentFxDetailsRepository;
 import com.example.payment_processing.repository.PaymentRepository;
 import com.example.payment_processing.repository.VendorRepository;
+import com.example.payment_processing.util.CurrencyCodeNormalizer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -82,8 +83,8 @@ public class PaymentService {
                     "Sender account and receiver account must be different");
         }
 
-        String senderCurrency = request.getCurrency().toUpperCase();
-        String receiverCurrency = invoice.getCurrency().toUpperCase();
+        String senderCurrency = CurrencyCodeNormalizer.normalize(request.getCurrency());
+        String receiverCurrency = CurrencyCodeNormalizer.normalize(invoice.getCurrency());
 
         FxComputation fxComputation = null;
         if (senderCurrency.equals(receiverCurrency)) {
@@ -172,8 +173,8 @@ public class PaymentService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new PaymentNotFoundException("Invoice not found"));
 
-        String paymentCurrency = currency.toUpperCase();
-        String invoiceCurrency = invoice.getCurrency().toUpperCase();
+        String paymentCurrency = CurrencyCodeNormalizer.normalize(currency);
+        String invoiceCurrency = CurrencyCodeNormalizer.normalize(invoice.getCurrency());
 
         PaymentQuoteResponse quote = new PaymentQuoteResponse();
         quote.setInvoiceId(invoiceId);

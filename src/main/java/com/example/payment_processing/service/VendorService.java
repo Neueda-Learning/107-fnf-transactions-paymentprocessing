@@ -3,11 +3,14 @@ package com.example.payment_processing.service;
 import com.example.payment_processing.dto.CreateVendorRequest;
 import com.example.payment_processing.model.Vendor;
 import com.example.payment_processing.repository.VendorRepository;
+import com.example.payment_processing.util.CurrencyCodeNormalizer;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class VendorService {
 
     private final VendorRepository vendorRepository;
@@ -25,7 +28,7 @@ public class VendorService {
         vendor.setName(request.getName());
         vendor.setEmail(request.getEmail());
         vendor.setBankAccount(request.getBankAccount());
-        vendor.setCountry(request.getCountry());
+        vendor.setCountry(CurrencyCodeNormalizer.normalize(request.getCountry()));
 
         return vendorRepository.save(vendor);
     }
@@ -36,9 +39,12 @@ public class VendorService {
     }
 
 
+    @Transactional(readOnly = true)
     public List<Vendor> getAllVendors() {
         return vendorRepository.findAll();
     }
+    
+    @Transactional(readOnly = true)
     public Vendor getVendorById(Long id) {
 
         return vendorRepository.findById(id)

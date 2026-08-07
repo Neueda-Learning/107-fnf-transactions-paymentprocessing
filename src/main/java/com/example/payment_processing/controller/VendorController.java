@@ -4,8 +4,11 @@ import com.example.payment_processing.dto.CreateVendorRequest;
 import com.example.payment_processing.model.Vendor;
 import com.example.payment_processing.service.VendorService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -22,8 +25,9 @@ public class VendorController {
     }
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public Vendor createVendor(
-            @RequestBody CreateVendorRequest request) {
+            @Valid @RequestBody CreateVendorRequest request) {
 
         return vendorService.createVendor(request);
     }

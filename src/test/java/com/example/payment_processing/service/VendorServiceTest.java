@@ -37,7 +37,7 @@ class VendorServiceTest {
         assertEquals("ACME Ltd", saved.getName());
         assertEquals("acme@vendor.com", saved.getEmail());
         assertEquals("ACCT-001", saved.getBankAccount());
-        assertEquals("US", saved.getCountry());
+        assertEquals("USD", saved.getCountry());
     }
 
     @Test

@@ -2,24 +2,50 @@
    Payment Processing Platform - js/dashboard.js
    ============================================================ */
 
-function resolveApiBase() {
-  const queryApiBase = new URLSearchParams(window.location.search).get('apiBase');
-  if (queryApiBase) {
-    return queryApiBase.replace(/\/$/, '');
+function generateUUID() {
+  // Fallback UUID generator that works in all browsers
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
   }
-
-  const { protocol, hostname, port } = window.location;
-  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  const isBackendPort = port === '8080';
-
-  if (protocol === 'file:' || (isLocalHost && !isBackendPort)) {
-    return 'http://localhost:8080/api';
-  }
-
-  return '/api';
+  // Polyfill for browsers that don't support crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
-const API_BASE = resolveApiBase();
+const CURRENCY_ALIASES = {
+  INR: 'INR', IN: 'INR', IND: 'INR', INDIA: 'INR', RUPEE: 'INR', RUPEES: 'INR',
+  USD: 'USD', US: 'USD', USA: 'USD', 'UNITED STATES': 'USD', 'UNITED STATES OF AMERICA': 'USD', DOLLAR: 'USD', DOLLARS: 'USD',
+  EUR: 'EUR', EU: 'EUR', EURO: 'EUR', EUROPE: 'EUR',
+  GBP: 'GBP', GB: 'GBP', UK: 'GBP', GBR: 'GBP', 'UNITED KINGDOM': 'GBP', BRITAIN: 'GBP', 'GREAT BRITAIN': 'GBP', POUND: 'GBP',
+  JPY: 'JPY', JP: 'JPY', JPN: 'JPY', JAPAN: 'JPY', YEN: 'JPY',
+  CAD: 'CAD', CA: 'CAD', CAN: 'CAD', CANADA: 'CAD'
+};
+
+const SUPPORTED_CURRENCIES = new Set(['INR', 'USD', 'EUR', 'GBP', 'JPY', 'CAD']);
+
+function normalizeCurrencyCode(value) {
+  if (!value) return 'INR';
+  const normalized = String(value).trim().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').toUpperCase();
+  return CURRENCY_ALIASES[normalized] || normalized;
+}
+
+function resolveApiBases() {
+  const queryApiBase = new URLSearchParams(window.location.search).get('apiBase');
+  if (queryApiBase) {
+    return [queryApiBase.replace(/\/$/, '')];
+  }
+
+  if (window.location.protocol === 'file:') {
+    return ['http://localhost:8081/api', 'http://localhost:8080/api'];
+  }
+
+  return [`${window.location.origin}/api`];
+}
+
+const API_BASES = resolveApiBases();
 const SENDER_CURRENCY = 'INR';
 const PLATFORM_SENDER_ACCOUNT = 'PLATFORM-INR-0001';
 const LOCAL_AUDIT_KEY = 'payment_platform_audit_logs';
@@ -33,7 +59,7 @@ const state = {
   activePayInvoiceId: null,
   activePayContext: null,
   currentPaymentFilter: 'ALL',
-  fxRates: { USD: 0.012, GBP: 0.0094, EUR: 0.011, INR: 1.0 }
+  fxRates: { USD: 0.012, GBP: 0.0094, EUR: 0.011, INR: 1.0, JPY: 0.082, CAD: 0.0162 }
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -63,50 +89,67 @@ function saveLocalPayments() {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
-  });
+  let lastError;
 
-  const rawBody = response.status === 204 ? '' : await response.text();
-  let parsedBody = null;
-  if (rawBody) {
-    try { parsedBody = JSON.parse(rawBody); } catch (_) { parsedBody = null; }
+  for (let i = 0; i < API_BASES.length; i += 1) {
+    const apiBase = API_BASES[i];
+    try {
+      const response = await fetch(`${apiBase}${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+
+      const rawBody = response.status === 204 ? '' : await response.text();
+      let parsedBody = null;
+      if (rawBody) {
+        try { parsedBody = JSON.parse(rawBody); } catch (_) { parsedBody = null; }
+      }
+
+      if (!response.ok) {
+        let errorText = `HTTP ${response.status}`;
+        if (parsedBody && typeof parsedBody === 'object') {
+          errorText = parsedBody.message || parsedBody.error || JSON.stringify(parsedBody);
+        } else if (rawBody) {
+          const looksLikeHtml = /^\s*</.test(rawBody);
+          errorText = looksLikeHtml ? `Endpoint not found (HTTP ${response.status})` : rawBody;
+        }
+        throw new Error(errorText);
+      }
+
+      if (response.status === 204) return null;
+      return parsedBody !== null ? parsedBody : rawBody;
+    } catch (error) {
+      lastError = error;
+      const isLastBase = i === API_BASES.length - 1;
+      const isRetryable = error instanceof TypeError || /Failed to fetch|NetworkError|Endpoint not found|HTTP 404/i.test(error.message || '');
+      if (isLastBase || !isRetryable) {
+        throw error;
+      }
+    }
   }
 
-  if (!response.ok) {
-    let errorText = `HTTP ${response.status}`;
-    if (parsedBody && typeof parsedBody === 'object') {
-      errorText = parsedBody.message || parsedBody.error || JSON.stringify(parsedBody);
-    } else if (rawBody) {
-      const looksLikeHtml = /^\s*</.test(rawBody);
-      errorText = looksLikeHtml ? `Endpoint not found (HTTP ${response.status})` : rawBody;
-    }
-    throw new Error(errorText);
-  }
-
-  if (response.status === 204) return null;
-  return parsedBody !== null ? parsedBody : rawBody;
+  throw lastError || new Error('API request failed');
 }
 
 function mapVendor(vendor) {
+  const normalizedCurrency = normalizeCurrencyCode(vendor.country || 'INR');
   return {
     id: vendor.id,
     displayId: `VND-${String(vendor.id).padStart(3, '0')}`,
     name: vendor.name,
     email: vendor.email,
     acc: vendor.bankAccount,
-    country: (vendor.country || 'INR').toUpperCase(),
-    curr: (vendor.country || 'INR').toUpperCase()
+    country: normalizedCurrency,
+    curr: normalizedCurrency
   };
 }
 
 function mapInvoice(invoice, statusByInvoiceId) {
   const vendor = state.vendors.find(v => Number(v.id) === Number(invoice.vendor?.id));
-  const curr = (invoice.currency || vendor?.curr || 'INR').toUpperCase();
+  const curr = normalizeCurrencyCode(invoice.currency || vendor?.curr || 'INR');
   const vendorCurrAmount = Number(invoice.invoiceAmount || 0);
   const rate = state.fxRates[curr] || 1;
   const baseAmountInr = curr === 'INR' ? vendorCurrAmount : Math.round(vendorCurrAmount / rate);
@@ -558,10 +601,15 @@ async function saveVendor() {
   const name = document.getElementById('vName').value.trim();
   const acc = document.getElementById('vAcc').value.trim();
   const email = document.getElementById('vEmail').value.trim();
-  const country = document.getElementById('vCountry').value.trim().toUpperCase();
+  const country = normalizeCurrencyCode(document.getElementById('vCountry').value);
 
   if (!name || !acc || !email || !country) {
     alert('Please fill out all vendor fields including currency code.');
+    return;
+  }
+
+  if (!SUPPORTED_CURRENCIES.has(country)) {
+    showToast('danger', 'Unsupported Currency', `Use one of: ${Array.from(SUPPORTED_CURRENCIES).join(', ')}.`);
     return;
   }
 
@@ -587,6 +635,12 @@ function updateInvoiceFXPreview() {
   const invoiceAmount = parseFloat(document.getElementById('invAmount').value) || 0;
   const vendor = state.vendors.find(v => String(v.id) === String(vId));
   if (!vendor) return;
+
+  if (!SUPPORTED_CURRENCIES.has(vendor.curr)) {
+    document.getElementById('invFxRatePreview').innerText = 'Unsupported currency';
+    document.getElementById('invConvertedPreview').innerText = '—';
+    return;
+  }
 
   const rate = state.fxRates[vendor.curr] || 1;
   const inrAmount = vendor.curr === 'INR' ? invoiceAmount : (invoiceAmount / rate);
@@ -649,14 +703,14 @@ async function initiatePayment(invId) {
       vendorName: inv.vendorName
     };
 
-    document.getElementById('payInvId').innerText = inv.displayId;
-    document.getElementById('payVendorName').innerText = inv.vendorName;
-    document.getElementById('payVendorAcc').innerText = inv.vendorAcc || '-';
-    document.getElementById('payTargetCurr').innerText = quote.invoiceCurrency;
-    document.getElementById('payBaseInr').innerText = `${quote.requiredPaymentAmount} ${quote.paymentCurrency}`;
-    document.getElementById('payForexFee').innerText = `${quote.fxFeeAmount} ${quote.invoiceCurrency}`;
-    document.getElementById('payFinalAmount').innerText = `${quote.convertedAmount} ${quote.invoiceCurrency}`;
-    document.getElementById('payIdempotency').value = crypto.randomUUID();
+     document.getElementById('payInvId').innerText = inv.displayId;
+     document.getElementById('payVendorName').innerText = inv.vendorName;
+     document.getElementById('payVendorAcc').innerText = inv.vendorAcc || '-';
+     document.getElementById('payTargetCurr').innerText = quote.invoiceCurrency;
+     document.getElementById('payBaseInr').innerText = `${quote.requiredPaymentAmount} ${quote.paymentCurrency}`;
+     document.getElementById('payForexFee').innerText = `${quote.fxFeeAmount} ${quote.invoiceCurrency}`;
+     document.getElementById('payFinalAmount').innerText = `${quote.convertedAmount} ${quote.invoiceCurrency}`;
+     document.getElementById('payIdempotency').value = generateUUID();
 
     openModal('payModal');
   } catch (error) {
@@ -819,14 +873,14 @@ function viewPaymentDetails(payId) {
 
 // ─── 1. OPEN REFUND MODAL ───
 function openRefundModal(paymentId) {
-    // Find payment details from your active payments state/array
-    const payment = paymentsList.find(p => p.id === paymentId);
+    // Find payment details from state.payments
+    const payment = state.payments.find(p => String(p.id) === String(paymentId));
     if (!payment) return;
 
     document.getElementById('refPaymentId').textContent = payment.id;
-    document.getElementById('refInvoiceId').textContent = payment.invoiceId || 'N/A';
-    document.getElementById('refVendorName').textContent = payment.vendorName || 'N/A';
-    document.getElementById('refOriginalAmount').textContent = `₹${payment.amount}`;
+    document.getElementById('refInvoiceId').textContent = payment.invoice?.invoiceNumber || payment.invoice?.id || 'N/A';
+    document.getElementById('refVendorName').textContent = payment.invoice?.vendor?.name || 'N/A';
+    document.getElementById('refOriginalAmount').textContent = `${payment.amount} ${payment.currency}`;
 
     openModal('refundModal');
 }
@@ -841,30 +895,24 @@ async function processRefund() {
     btn.textContent = 'Processing...';
 
     try {
-        const response = await fetch(`http://localhost:8080/api/v1/payments/${paymentId}/refund`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Idempotency-Key': crypto.randomUUID()
-            },
-            body: JSON.stringify({ reason: reason })
-        });
+        await apiRequest(`/refunds`, {
+             method: 'POST',
+             headers: {
+                 'X-Idempotency-Key': generateUUID()
+             },
+             body: JSON.stringify({ paymentId: Number(paymentId), reason: reason })
+         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to issue refund');
-        }
-
-        alert('Refund processed successfully!');
-        closeModal('refundModal');
-        fetchPayments(); // Refresh payments table from backend
-    } catch (error) {
-        console.error('Refund Error:', error);
-        alert(`Error: ${error.message}`);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Confirm & Issue Refund';
-    }
+         showToast('success', 'Refund Processed', 'Refund issued successfully!');
+         closeModal('refundModal');
+         await loadDashboardData();
+     } catch (error) {
+         console.error('Refund Error:', error);
+         showToast('danger', 'Refund Failed', error.message);
+     } finally {
+         btn.disabled = false;
+         btn.textContent = 'Confirm & Issue Refund';
+     }
 }
 
 // ─── 3. UPDATE PAYMENTS TABLE RENDERING ───

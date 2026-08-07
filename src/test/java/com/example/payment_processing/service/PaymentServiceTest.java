@@ -214,6 +214,19 @@ class PaymentServiceTest {
     }
 
     @Test
+    void getPaymentQuote_normalizesStoredInvoiceCurrencyAlias() {
+        Invoice invoice = invoice(20L, "250.00", 8L, "ACC");
+        invoice.setCurrency("United States");
+        when(invoiceRepository.findById(20L)).thenReturn(Optional.of(invoice));
+
+        PaymentQuoteResponse quote = paymentService.getPaymentQuote(20L, "usd");
+
+        assertFalse(quote.isCrossCurrency());
+        assertEquals("USD", quote.getInvoiceCurrency());
+        assertEquals(new BigDecimal("250.00"), quote.getRequiredPaymentAmount());
+    }
+
+    @Test
     void getPaymentQuote_crossCurrency_calculatesExpectedValues() {
         Invoice invoice = invoice(21L, "117.60", 9L, "ACC");
         when(invoiceRepository.findById(21L)).thenReturn(Optional.of(invoice));
@@ -228,6 +241,23 @@ class PaymentServiceTest {
         assertEquals(new BigDecimal("2.00"), quote.getFxFeePercent());
         assertEquals(new BigDecimal("2.40"), quote.getFxFeeAmount());
         assertEquals(new BigDecimal("117.60"), quote.getConvertedAmount());
+    }
+
+    @Test
+    void createPayment_normalizesInvoiceCurrencyAliasForSameCurrencyValidation() {
+        Invoice invoice = invoice(22L, "150.00", 10L, "VENDOR-ACC-10");
+        invoice.setCurrency("US");
+        CreatePaymentRequest request = paymentRequest(22L, "150.00", "usd", "SENDER-123", "VENDOR-ACC-10");
+
+        when(paymentRepository.existsByInvoice_IdAndStatus(22L, PaymentStatus.COMPLETED)).thenReturn(false);
+        when(invoiceRepository.findById(22L)).thenReturn(Optional.of(invoice));
+        when(vendorRepository.findById(10L)).thenReturn(Optional.of(invoice.getVendor()));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payment saved = paymentService.createPayment(request);
+
+        assertEquals("USD", saved.getCurrency());
+        verify(paymentFxDetailsRepository, never()).save(any(PaymentFxDetails.class));
     }
 
     @Test

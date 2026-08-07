@@ -5,6 +5,7 @@ import com.example.payment_processing.model.Invoice;
 import com.example.payment_processing.model.Vendor;
 import com.example.payment_processing.repository.InvoiceRepository;
 import com.example.payment_processing.repository.VendorRepository;
+import com.example.payment_processing.util.CurrencyCodeNormalizer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,7 +36,7 @@ public class InvoiceService {
         Invoice invoice = new Invoice();
         invoice.setInvoiceNumber(request.getInvoiceNumber());
         invoice.setInvoiceAmount(request.getInvoiceAmount());
-        invoice.setCurrency(request.getCurrency().toUpperCase());
+        invoice.setCurrency(CurrencyCodeNormalizer.normalize(request.getCurrency()));
         invoice.setCreatedAt(LocalDateTime.now());
         invoice.setVendor(vendor);
 

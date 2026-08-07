@@ -1,40 +1,37 @@
-version: '3.8'
-
 services:
-mysql:
-  image: mysql:8
-  container_name: mysql-container
-  restart: always
-
-  environment:
-    MYSQL_ROOT_PASSWORD: n3u3da!
-    MYSQL_DATABASE: payments_db
-
-  ports:
-    - "3306:3306"
-
-  volumes:
-    - mysql-data:/var/lib/mysql
-
-  networks:
-    - springboot-network
+  mysql:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: n3u3da!
+      MYSQL_DATABASE: payments_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - springboot-network
 
   springboot-app:
     build: .
-    container_name: springboot-app
-
-    ports:
-      - "8081:8081"
-
+    restart: always
     depends_on:
-      - mysql
-
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:mysql://mysql:3306/payments_db
+      DB_URL: jdbc:mysql://mysql:3306/payments_db?createDatabaseIfNotExist=true
       DB_USER: root
       DB_PASS: n3u3da!
-
+      SERVER_PORT: 8080
+    ports:
+      - "8081:8080"
     networks:
       - springboot-network
 

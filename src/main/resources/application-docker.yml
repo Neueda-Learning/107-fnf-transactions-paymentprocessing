@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:mysql://mysql-container:3306/payments_db?createDatabaseIfNotExist=true
-    username: root
-    password: n3u3da!
+    url: ${DB_URL:jdbc:mysql://localhost:3306/payments_db?createDatabaseIfNotExist=true}
+    username: ${DB_USER:root}
+    password: ${DB_PASS:n3u3da!}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

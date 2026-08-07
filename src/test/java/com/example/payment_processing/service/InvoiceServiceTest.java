@@ -37,8 +37,8 @@ class InvoiceServiceTest {
     private InvoiceService invoiceService;
 
     @Test
-    void createInvoice_success_uppercasesCurrencyAndSaves() {
-        CreateInvoiceRequest request = createInvoiceRequest("INV-1001", "125.50", 1L, "usd");
+    void createInvoice_success_normalizesCurrencyAndSaves() {
+        CreateInvoiceRequest request = createInvoiceRequest("INV-1001", "125.50", 1L, "us");
         Vendor vendor = vendor();
 
         when(invoiceRepository.existsByInvoiceNumber("INV-1001")).thenReturn(false);
